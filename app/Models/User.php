@@ -22,8 +22,8 @@ class User extends Authenticatable
         'email',
         'password',
         'phone',
-        'is_enabled',
-        'roles',
+        'is_active', // Coincide con tu base de datos
+        'roles',     // Coincide con tu columna JSON
     ];
 
     /**
@@ -46,18 +46,17 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
-            'is_enabled' => 'boolean',
-            //'roles' => 'array', // <--- ESTA LINEA ES LA MAGIA
+            'is_active' => 'boolean',
+            'roles' => 'array', // <--- ESTO ES VITAL: Convierte el JSON a Array y viceversa
         ];
     }
 
     /**
      * Relationships
      */
-    public function roles()
-    {
-        return $this->belongsToMany(Role::class, 'user_roles');
-    }
+    
+    // ❌ HE BORRADO public function roles() 
+    // Porque ahora 'roles' es una columna, no una tabla relacionada.
 
     public function projects()
     {
@@ -81,17 +80,20 @@ class User extends Authenticatable
 
     /**
      * Check if user has a specific role
+     * ✅ CORREGIDO: Ahora busca dentro del Array JSON
      */
     public function hasRole(string $roleName): bool
     {
-        return $this->roles()->where('name', $roleName)->exists();
+        // Si roles es null, usamos array vacío para evitar error
+        return in_array($roleName, $this->roles ?? []);
     }
 
     /**
      * Check if user is enabled
+     * ✅ CORREGIDO: El nombre correcto de la columna es is_active
      */
     public function isEnabled(): bool
     {
-        return $this->is_enabled;
+        return $this->is_active;
     }
 }

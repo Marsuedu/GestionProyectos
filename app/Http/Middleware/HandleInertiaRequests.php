@@ -33,9 +33,11 @@ class HandleInertiaRequests extends Middleware
             ...parent::share($request),
             'auth' => [
                 'user' => $request->user(),
-                'roles' => $request->user() 
-                     ? $request->user()->roles()->pluck('name')->toArray() // <--- ESTO ES LA CLAVE
-             : [],
+                
+                // ✅ CORRECCIÓN AQUÍ:
+                // Quitamos "->roles()->pluck(...)" y dejamos solo "->roles"
+                // Como en el modelo User pusimos 'roles' => 'array', esto ya devuelve el array limpio.
+                'roles' => $request->user() ? $request->user()->roles : [],
             ],
         ];
     }

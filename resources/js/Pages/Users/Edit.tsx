@@ -1,19 +1,32 @@
 import React from 'react';
 import { Head, Link, useForm } from '@inertiajs/react';
 
-interface Role { id: number; name: string }
-interface User { id: number; name: string; email: string; phone?: string | null; is_enabled: boolean; roles: Role[] }
+// 1. Ajustamos la interfaz: 'roles' ahora es un array de textos (string[])
+interface User { 
+    id: number; 
+    name: string; 
+    email: string; 
+    phone?: string | null; 
+    is_enabled: boolean | number; // Puede venir como 1/0 o true/false
+    roles: string[] | null;       // <--- CAMBIO CLAVE: Es JSON, son strings.
+}
 
-export default function Edit({ user, roles }: { user: User; roles: Role[] }) {
-  const roleIds = user.roles.map(r => r.id);
+// 2. Definimos los roles disponibles aquí (para no depender de tablas externas)
+const AVAILABLE_ROLES = ['Administrador', 'Responsable de proyecto', 'Responsable de tarea'];
+
+export default function Edit({ user }: { user: User }) {
+  
+  // 3. Inicializamos el formulario adaptado al formato JSON
   const { data, setData, put, processing, errors, reset } = useForm({
     name: user.name || '',
     email: user.email || '',
     password: '',
     password_confirmation: '',
     phone: user.phone || '',
-    is_enabled: user.is_enabled,
-    roles: roleIds as number[],
+    // Aseguramos que sea booleano real
+    is_enabled: Boolean(user.is_enabled), 
+    // Si es null (usuario antiguo), usamos array vacío
+    roles: Array.isArray(user.roles) ? user.roles : [], 
   });
 
   function submit(e: React.FormEvent) {
@@ -22,6 +35,17 @@ export default function Edit({ user, roles }: { user: User; roles: Role[] }) {
       onSuccess: () => reset('password', 'password_confirmation'),
     });
   }
+
+  // Función para manejar el cambio de checkboxes (Array de Strings)
+  const handleRoleChange = (role: string, checked: boolean) => {
+    let newRoles = [...data.roles];
+    if (checked) {
+        newRoles.push(role);
+    } else {
+        newRoles = newRoles.filter(r => r !== role);
+    }
+    setData('roles', newRoles);
+  };
 
   return (
     <div className="w-full min-h-screen bg-gray-50 text-gray-900 dark:bg-black dark:text-gray-100 py-10 px-4">
@@ -65,41 +89,46 @@ export default function Edit({ user, roles }: { user: User; roles: Role[] }) {
               {errors.phone && <p className="text-red-600 text-sm mt-1">{errors.phone}</p>}
             </div>
             <div className="pt-6">
-              <label className="inline-flex items-center gap-2 text-gray-800 dark:text-gray-200">
-                <input className="rounded border-gray-300 dark:border-slate-700 dark:bg-slate-900" type="checkbox" checked={data.is_enabled} onChange={(e) => setData('is_enabled', e.target.checked)} />
-                <span className="text-sm">Habilitado</span>
+              <label className="inline-flex items-center gap-2 text-gray-800 dark:text-gray-200 cursor-pointer">
+                <input 
+                    className="rounded border-gray-300 dark:border-slate-700 dark:bg-slate-900 text-blue-600 focus:ring-blue-500" 
+                    type="checkbox" 
+                    checked={data.is_enabled} 
+                    onChange={(e) => setData('is_enabled', e.target.checked)} 
+                />
+                <span className="text-sm select-none">Habilitado</span>
               </label>
-              {errors.is_enabled && <p className="text-red-600 text-sm mt-1">{errors.is_enabled as unknown as string}</p>}
+              {/* @ts-ignore */}
+              {errors.is_enabled && <p className="text-red-600 text-sm mt-1">{errors.is_enabled}</p>}
             </div>
           </div>
 
           <div>
             <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Roles</label>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {roles.map((r) => {
-                const checked = data.roles.includes(r.id);
+              {/* 4. Usamos la lista de roles fijos */}
+              {AVAILABLE_ROLES.map((roleName) => {
+                const checked = data.roles.includes(roleName);
                 return (
-                  <label key={r.id} className="inline-flex items-center gap-2 border rounded px-3 py-2 dark:border-slate-700 dark:bg-slate-900 dark:text-gray-100">
+                  <label key={roleName} className="inline-flex items-center gap-2 border rounded px-3 py-2 dark:border-slate-700 dark:bg-slate-900 dark:text-gray-100 cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/50">
                     <input
                       type="checkbox"
-                      className="rounded border-gray-300 dark:border-slate-700 dark:bg-slate-900"
+                      className="rounded border-gray-300 dark:border-slate-700 dark:bg-slate-900 text-blue-600 focus:ring-blue-500"
                       checked={checked}
-                      onChange={(e) => {
-                        if (e.target.checked) setData('roles', [...data.roles, r.id]);
-                        else setData('roles', data.roles.filter((id) => id !== r.id));
-                      }}
+                      onChange={(e) => handleRoleChange(roleName, e.target.checked)}
                     />
-                    <span className="text-sm">{r.name}</span>
+                    <span className="text-sm select-none">{roleName}</span>
                   </label>
                 );
               })}
             </div>
-            {errors.roles && <p className="text-red-600 text-sm mt-1">{errors.roles as unknown as string}</p>}
+            {/* @ts-ignore */}
+            {errors.roles && <p className="text-red-600 text-sm mt-1">{errors.roles}</p>}
           </div>
 
           <div className="pt-2">
-            <button type="submit" disabled={processing} className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded disabled:opacity-50">
-              {processing ? 'Guardando...' : 'Actualizar'}
+            <button type="submit" disabled={processing} className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded disabled:opacity-50 font-medium shadow-sm transition-colors">
+              {processing ? 'Guardando...' : 'Actualizar Usuario'}
             </button>
           </div>
         </form>

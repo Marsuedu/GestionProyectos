@@ -3,8 +3,7 @@ import { Head, Link, router, usePage } from '@inertiajs/react'; // <--- 1. IMPOR
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { PageProps } from '@/types';
 
-interface Role { id: number; name: string }
-interface User { id: number; name: string; email: string; is_enabled: boolean; roles: Role[] }
+interface User { id: number; name: string; email: string; is_enabled: boolean; roles: string[] }
 
 interface PaginationLink { url: string | null; label: string; active: boolean }
 interface Paginated<T> {
@@ -59,12 +58,15 @@ export default function Index({ users }: { users: Paginated<User> }) {
                         {u.is_enabled ? 'Habilitado' : 'Deshabilitado'}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-sm">
-                      <div className="flex flex-wrap gap-2">
-                        {u.roles.length > 0 ? (
-                          u.roles.map((r) => (
-                            <span key={r.id} className="inline-flex items-center rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-medium text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300">
-                              {r.name}
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex gap-1 flex-wrap">
+                        {u.roles && u.roles.length > 0 ? (
+                          u.roles.map((role, index) => (
+                            <span
+                              key={index}
+                              className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300"
+                            >
+                              {role}
                             </span>
                           ))
                         ) : (

@@ -27,9 +27,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
     
-    // Complete profile routes (desactivadas temporalmente)
-    // Route::get('/complete-profile', [ProfileController::class, 'completeShow'])->name('profile.complete');
-    // Route::post('/complete-profile', [ProfileController::class, 'completeStore'])->name('profile.complete.store');
+    // Complete profile routes
+    Route::get('/complete-profile', [ProfileController::class, 'completeShow'])->name('profile.complete');
+    Route::post('/complete-profile', [ProfileController::class, 'completeStore'])->name('profile.complete.store');
 
     // User management routes (Admin only)
     Route::resource('users', UserController::class);

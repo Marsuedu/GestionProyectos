@@ -16,12 +16,22 @@ class UserController extends Controller
         $this->middleware('role:Administrador');
     }
 
-    public function index()
+    public function index(Request $request)
     {
-        $users = User::with('roles')->paginate(10);
-        
+        $users = User::query()
+            // Ya no usamos ->with('roles') porque roles es una columna JSON
+            ->when($request->input('search'), function ($query, $search) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('name', 'like', "%{$search}%")
+                      ->orWhere('email', 'like', "%{$search}%");
+                });
+            })
+            ->paginate(10)
+            ->withQueryString();
+
         return Inertia::render('Users/Index', [
             'users' => $users,
+            'filters' => $request->only(['search']),
         ]);
     }
 
@@ -62,21 +72,15 @@ class UserController extends Controller
 
     public function show(User $user)
     {
-        $user->load(['roles', 'projects', 'assignedTasks.project']);
-        
         return Inertia::render('Users/Show', [
-            'user' => $user,
+            'user' => $user, // Ya incluye roles como array JSON gracias al cast del modelo
         ]);
     }
 
     public function edit(User $user)
     {
-        $user->load('roles');
-        $roles = Role::all();
-        
         return Inertia::render('Users/Edit', [
             'user' => $user,
-            'roles' => $roles,
         ]);
     }
 
@@ -84,50 +88,42 @@ class UserController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users')->ignore($user->id)],
-            'password' => 'nullable|string|min:8|confirmed',
+            'email' => 'required|email|max:255|unique:users,email,' . $user->id,
             'phone' => 'nullable|string|max:20',
-            'is_enabled' => 'boolean',
-            'roles' => 'required|array|min:1',
-            'roles.*' => 'exists:roles,id',
+            'is_active' => 'boolean',
+            'roles' => 'nullable|array', // Validar como array de textos
         ]);
 
-        $updateData = [
+        $user->update([
             'name' => $validated['name'],
             'email' => $validated['email'],
-            'phone' => $validated['phone'],
-            'is_enabled' => $validated['is_enabled'] ?? true,
-        ];
+            'phone' => $validated['phone'] ?? null,
+            'is_active' => $validated['is_active'] ?? $user->is_active,
+            'roles' => $validated['roles'] ?? [], // Guardar directo al JSON (array de strings)
+        ]);
 
-        if (!empty($validated['password'])) {
-            $updateData['password'] = Hash::make($validated['password']);
-        }
-
-        $user->update($updateData);
-        $user->roles()->sync($validated['roles']);
-
-        return redirect()->route('users.index')
-            ->with('success', 'Usuario actualizado exitosamente.');
+        return redirect()->route('users.index')->with('success', 'Usuario actualizado.');
     }
 
     public function destroy(User $user)
     {
-    // 1. Validar que quien ejecuta la acción sea Administrador
-    $currentUser = auth()->user();
+        $currentUser = auth()->user();
 
-    // AHORA roles es una Collection (belongsToMany), NO un array
-    if (!$currentUser->roles->contains('name', 'Administrador')) {
-        abort(403, 'No tienes permiso para realizar esta acción.');
+        // 1. Validar que quien ejecuta la acción sea Administrador
+        // CORRECCIÓN: Usamos in_array porque 'roles' ahora es una lista simple de textos
+        // y agregamos '?? []' por si viene null.
+        if (!in_array('Administrador', $currentUser->roles ?? [])) {
+            abort(403, 'No tienes permiso para realizar esta acción.');
+        }
+
+        // 2. Evitar auto-eliminación
+        if ($currentUser->id === $user->id) {
+            return redirect()->back()->with('error', 'No puedes eliminar tu propia cuenta.');
+        }
+
+        // 3. Eliminar
+        $user->delete();
+
+        return redirect()->route('users.index')->with('success', 'Usuario eliminado correctamente.');
     }
-
-    // 2. Evitar auto-eliminación
-    if ($currentUser->id === $user->id) {
-        return redirect()->back()->with('error', 'No puedes eliminar tu propia cuenta.');
-    }
-
-    // 3. Eliminar
-    $user->delete();
-
-    return redirect()->route('users.index')->with('success', 'Usuario eliminado correctamente.');
-}
 }

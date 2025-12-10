@@ -51,21 +51,28 @@ class ProfileController extends Controller
      * Store the completed profile information.
      */
     public function completeStore(Request $request)
-{
-    // 1. Validar que roles sea un array (opcional pero recomendado)
-    $request->validate([
-        'phone' => 'nullable|string|max:20',
-        'roles' => 'nullable|array', // <--- Importante
-    ]);
+    {
+        // 1. Validamos TODOS los campos por seguridad
+        $request->validate([
+            'phone' => 'nullable|string|max:20',
+            'is_active' => 'boolean',      // Validamos que sea verdadero/falso
+            'roles' => 'nullable|array',   // Validamos que sea un array
+        ]);
 
-    // 2. Actualizar el usuario
-    // Como ya agregaste 'roles' al $fillable, esto ahora SÍ funcionará
-    $request->user()->update([
-        'phone' => $request->phone,
-        'is_active' => $request->boolean('is_active'), // boolean() asegura true/false
-        'roles' => $request->roles,
-    ]);
+        // 2. Actualizar el usuario
+        // Al usar update(), Laravel revisa el $fillable del Modelo User.
+        // Como ya arreglamos el modelo, esto guardará los datos en las columnas JSON y String.
+        $request->user()->update([
+            'phone' => $request->phone,
+            'is_active' => $request->boolean('is_active'), // Convierte "on", 1, "true" a booleano real
+            
+            // TRUCO DE SEGURIDAD:
+            // Si el usuario desmarca todo, 'roles' podría llegar como null.
+            // Usamos '?? []' para asegurar que se guarde un array vacío en la BD y no de error.
+            'roles' => $request->roles ?? [], 
+        ]);
 
-    return redirect()->route('dashboard');
-}
+        // 3. Redirigir al Dashboard
+        return redirect()->route('dashboard');
+    }
 }
